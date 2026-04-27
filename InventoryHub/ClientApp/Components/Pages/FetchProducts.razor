@@ -1,0 +1,174 @@
+@page "/fetchproducts"
+@using System.Text.Json
+@inject HttpClient HttpClient
+@rendermode InteractiveWebAssembly
+
+<PageTitle>Product List</PageTitle>
+
+<div class="container">
+    <div class="header">
+        <h1>InventoryHub - Product Management</h1>
+        <p class="subtitle">Browse our product catalog</p>
+    </div>
+
+    @if (products == null)
+    {
+        <div class="loading">
+            <p>Loading products...</p>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <div class="error-box">
+            <h3>Error Loading Products</h3>
+            <p>@errorMessage</p>
+            <button class="btn-retry" @onclick="FetchProducts">Retry</button>
+        </div>
+    }
+    else if (products.Length == 0)
+    {
+        <p class="no-products">No products available at this time.</p>
+    }
+    else
+    {
+        <div class="filter-section">
+            <label for="categoryFilter">Filter by Category:</label>
+            <select id="categoryFilter" class="filter-select" @onchange="FilterByCategory">
+                <option value="">All Categories</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+        </div>
+
+        <div class="products-grid">
+            @foreach (var product in displayedProducts)
+            {
+                <div class="product-card">
+                    <div class="product-header">
+                        <h3>@product.Name</h3>
+                        <span class="category-badge">@product.Category.Name</span>
+                    </div>
+                    <div class="product-body">
+                        <div class="product-info">
+                            <p><strong>Price:</strong> $@product.Price.ToString("F2")</p>
+                            <p><strong>Stock:</strong> @product.Stock units</p>
+                            <p><strong>Product ID:</strong> #@product.Id</p>
+                        </div>
+                        <div class="stock-indicator">
+                            @if (product.Stock > 50)
+                            {
+                                <span class="stock-high">In Stock</span>
+                            }
+                            else if (product.Stock > 0)
+                            {
+                                <span class="stock-medium">Limited Stock</span>
+                            }
+                            else
+                            {
+                                <span class="stock-low">Out of Stock</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="info-section">
+            <p>Total Products: @products.Length | Displayed: @displayedProducts.Count</p>
+        </div>
+    }
+</div>
+
+@code {
+    private Product[]? products;
+    private List<Product> displayedProducts = new();
+    private string? errorMessage;
+    private string selectedCategory = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchProducts();
+    }
+
+    private async Task FetchProducts()
+    {
+        try
+        {
+            errorMessage = null;
+            // Clear products during loading
+            products = null;
+
+            // Call the API endpoint
+            var response = await HttpClient.GetAsync("/api/productlist");
+
+            // Check if the response is successful
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"API returned status code {response.StatusCode}");
+            }
+
+            // Read the response content
+            var json = await response.Content.ReadAsStringAsync();
+
+            // Deserialize the JSON into Product array
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            products = JsonSerializer.Deserialize<Product[]>(json, options);
+
+            // Apply any existing filters
+            ApplyFilters();
+        }
+        catch (HttpRequestException httpEx)
+        {
+            errorMessage = $"Network error: Unable to connect to the server. {httpEx.Message}";
+            Console.WriteLine($"HTTP Error: {httpEx}");
+        }
+        catch (JsonException jsonEx)
+        {
+            errorMessage = $"Data format error: The server returned invalid data. {jsonEx.Message}";
+            Console.WriteLine($"JSON Error: {jsonEx}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading products: {ex.Message}";
+            Console.WriteLine($"Error: {ex}");
+        }
+    }
+
+    private void FilterByCategory(ChangeEventArgs e)
+    {
+        selectedCategory = e.Value?.ToString() ?? "";
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (products == null)
+            return;
+
+        if (string.IsNullOrEmpty(selectedCategory))
+        {
+            displayedProducts = products.ToList();
+        }
+        else
+        {
+            displayedProducts = products
+                .Where(p => p.Category.Name == selectedCategory)
+                .ToList();
+        }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public double Price { get; set; }
+        public int Stock { get; set; }
+        public Category Category { get; set; } = new();
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}

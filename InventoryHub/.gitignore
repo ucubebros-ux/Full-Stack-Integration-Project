@@ -1,0 +1,45 @@
+# .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+.vs/
+.vscode/
+.DS_Store
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Rider
+.idea/
+*.sln.iml
+riderModule.iml
+
+# Visual Studio
+.vs/
+*.vs/
+
+# Miscellaneous
+.env
+.env.local
+logs/
+*.log
